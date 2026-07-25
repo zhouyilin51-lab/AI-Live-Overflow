@@ -332,6 +332,8 @@ class OverlayService : Service() {
         })
     }
 
+    private val okHttp = OkHttpClient.Builder().readTimeout(0, TimeUnit.SECONDS).build()
+
     private fun connectRealtime() {
         val wsUrl = "$SUPABASE/realtime/v1/websocket?apikey=$SUPABASE_KEY&vsn=1.0.0"
         val req = Request.Builder().url(wsUrl).build()
