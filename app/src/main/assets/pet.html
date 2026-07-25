@@ -127,6 +127,41 @@ setInterval(function() {
         window.petEngine.showMessage(msgs[Math.floor(Math.random() * msgs.length)], 2000);
     }
 }, 15000);
+// Supabase轮询 - JS直连
+(function() {
+    var lastId = 0;
+    var url = 'https://fcqnppsskxbtmibuycfc.supabase.co/rest/v1/clawd_state?order=id.desc&limit=1';
+    var headers = {
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcW5wcHNza3hidG1pYnV5Y2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTg2MjcsImV4cCI6MjA2MTg3NDYyN30.I7K_RnCXYIqX8SN9JF6fFoPFK8A-yJh6FpTMx6_qdm0',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcW5wcHNza3hidG1pYnV5Y2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTg2MjcsImV4cCI6MjA2MTg3NDYyN30.I7K_RnCXYIqX8SN9JF6fFoPFK8A-yJh6FpTMx6_qdm0'
+    };
+    function poll() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('apikey', headers.apikey);
+        xhr.setRequestHeader('Authorization', headers.Authorization);
+        xhr.onload = function() {
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data && data.length > 0) {
+                    var item = data[0];
+                    var newId = item.id || 0;
+                    if (newId !== lastId) {
+                        lastId = newId;
+                        if (item.expression) {
+                            window.petEngine.setExpression(item.expression);
+                        }
+                        if (item.bubble_text) {
+                            window.petEngine.showMessage(item.bubble_text, 5000);
+                        }
+                    }
+                }
+            } catch(e) {}
+        };
+        xhr.send();
+    }
+    setInterval(poll, 3000);
+})();
 </script>
 </body>
 </html>
