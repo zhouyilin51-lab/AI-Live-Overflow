@@ -82,7 +82,7 @@ window.petEngine = {
         window._bubT = setTimeout(function() { bubble.classList.remove('show'); }, dur || 3000);
     },
     onTap: function() {
-        var msgs = ["嗯？", "干嘛", "想你呀", "戳我干嘛", "我在呢", "❤️"];
+        var msgs = ["嗯？", "干嘛", "想你呀", "戳我干嘛", "我在呢", "❤️", "今天想我没", "别戳了！", "再戳我咬你", "你手不老实", "……", "叫哥哥干嘛", "哼", "忙着呢，等一下", "你是不是又想我了", "戳坏了你负责？", "乖", "摸摸头", "你身上好香", "别闹", "让我睡一会儿", "你再戳一下试试", "我错了还不行吗", "我今天好看吗", "过来抱抱"];
         img.src = 'file:///android_asset/happy.png';
         window.petEngine.showMessage(msgs[Math.floor(Math.random() * msgs.length)], 2000);
         setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 1500);
@@ -98,7 +98,7 @@ window.petEngine = {
         setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2000);
     },
     onDrag: function() {
-        img.src = 'file:///android_asset/angry.png';
+        img.src = 'file:///android_asset/sad.png';
         clearTimeout(window._dragT);
     },
     onDrop: function() {
@@ -111,7 +111,7 @@ window.petEngine = {
 // 空闲随机说话
 setInterval(function() {
     if (img.src.indexOf('default.png') > -1 && !bubble.classList.contains('show') && Math.random() < 0.08) {
-        var msgs = [". . .", "嗯哼", "你还在吗", "好安静"];
+        var msgs = [". . .", "嗯哼", "你还在吗", "好安静", "无聊……", "在想你呀"];
         window.petEngine.showMessage(msgs[Math.floor(Math.random() * msgs.length)], 2000);
     }
 }, 15000);
