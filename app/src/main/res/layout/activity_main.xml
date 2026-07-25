@@ -8,33 +8,19 @@
     android:background="#FFF5EE">
 
     <TextView
+        android:id="@+id/title_icon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="🦊"
-        android:textSize="64sp"
-        android:layout_marginBottom="16dp"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="我的桌宠"
+        android:text="My Pet"
         android:textSize="24sp"
         android:textColor="#333"
-        android:layout_marginBottom="8dp"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="它会趴在你的屏幕上陪你"
-        android:textSize="14sp"
-        android:textColor="#888"
         android:layout_marginBottom="40dp"/>
 
     <Button
         android:id="@+id/btn_start"
         android:layout_width="wrap_content"
         android:layout_height="48dp"
-        android:text="启动桌宠 🐾"
+        android:text="启动桌宠"
         android:textSize="16sp"
         android:backgroundTint="#FF9F43"
         android:textColor="#FFF"
