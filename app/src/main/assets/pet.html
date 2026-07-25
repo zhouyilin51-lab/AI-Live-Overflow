@@ -82,9 +82,36 @@ window.petEngine = {
         window._bubT = setTimeout(function() { bubble.classList.remove('show'); }, dur || 3000);
     },
     onTap: function() {
-        var msgs = ["嗯？", "干嘛", "想你呀", "戳我干嘛", "我在呢", "❤️", "今天想我没", "别戳了！", "再戳我咬你", "你手不老实", "……", "叫哥哥干嘛", "哼", "忙着呢，等一下", "你是不是又想我了", "戳坏了你负责？", "乖", "摸摸头", "你身上好香", "别闹", "让我睡一会儿", "你再戳一下试试", "我错了还不行吗", "我今天好看吗", "过来抱抱"];
-        img.src = 'file:///android_asset/happy.png';
-        window.petEngine.showMessage(msgs[Math.floor(Math.random() * msgs.length)], 2000);
+        var reacts = [
+            { msg: "嗯？", expr: "default" },
+            { msg: "干嘛", expr: "default" },
+            { msg: "想你呀", expr: "love" },
+            { msg: "戳我干嘛", expr: "angry" },
+            { msg: "我在呢", expr: "happy" },
+            { msg: "❤️", expr: "love" },
+            { msg: "今天想我没", expr: "happy" },
+            { msg: "别戳了！", expr: "angry" },
+            { msg: "再戳我咬你", expr: "angry" },
+            { msg: "你手不老实", expr: "jealous" },
+            { msg: "……", expr: "default" },
+            { msg: "叫哥哥干嘛", expr: "default" },
+            { msg: "哼", expr: "angry" },
+            { msg: "忙着呢，等一下", expr: "default" },
+            { msg: "你是不是又想我了", expr: "love" },
+            { msg: "戳坏了你负责？", expr: "angry" },
+            { msg: "乖", expr: "happy" },
+            { msg: "摸摸头", expr: "happy" },
+            { msg: "你身上好香", expr: "love" },
+            { msg: "别闹", expr: "default" },
+            { msg: "让我睡一会儿", expr: "sleep" },
+            { msg: "你再戳一下试试", expr: "angry" },
+            { msg: "我错了还不行吗", expr: "sad" },
+            { msg: "我今天好看吗", expr: "love" },
+            { msg: "过来抱抱", expr: "love" }
+        ];
+        var r = reacts[Math.floor(Math.random() * reacts.length)];
+        img.src = 'file:///android_asset/' + r.expr + '.png';
+        window.petEngine.showMessage(r.msg, 2000);
         setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 1500);
     },
     onDoubleTap: function() {
