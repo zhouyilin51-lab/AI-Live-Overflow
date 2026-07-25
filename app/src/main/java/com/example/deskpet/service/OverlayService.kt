@@ -12,6 +12,14 @@ import android.view.*
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebSettings
+import android.os.Handler
+import android.os.Looper
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+import org.json.JSONArray
+import org.json.JSONObject
 import androidx.core.app.NotificationCompat
 
 /**
@@ -74,6 +82,7 @@ class OverlayService : Service() {
 
         try {
             windowManager?.addView(overlayView, params)
+            startPolling()
         } catch (e: Exception) {
             android.util.Log.e("DeskPet", "悬浮窗添加失败", e)
             stopSelf()
@@ -200,6 +209,67 @@ class OverlayService : Service() {
             it.destroy()
         }
         overlayView = null
+        pollingHandler.removeCallbacks(pollingRunnable)
         super.onDestroy()
+    }
+
+    companion object {
+        private const val SUPABASE_URL = "https://fcqnppsskxbtmibuycfc.supabase.co"
+        private const val SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcW5wcHNza3hidG1pYnV5Y2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTg2MjcsImV4cCI6MjA2MTg3NDYyN30.I7K_RnCXYIqX8SN9JF6fFoPFK8A-yJh6FpTMx6_qdm0"
+    }
+
+    private var lastStateId: Long = -1
+    private val pollingHandler = Handler(Looper.getMainLooper())
+    private val pollingRunnable = object : Runnable {
+        override fun run() {
+            fetchSupabaseState()
+            pollingHandler.postDelayed(this, 3000)
+        }
+    }
+
+    private fun startPolling() {
+        pollingHandler.post(pollingRunnable)
+    }
+
+    private fun fetchSupabaseState() {
+        Thread {
+            try {
+                val url = URL("$SUPABASE_URL/rest/v1/clawd_state?order=id.desc&limit=1")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.setRequestProperty("apikey", SUPABASE_KEY)
+                conn.setRequestProperty("Authorization", "Bearer $SUPABASE_KEY")
+                conn.readTimeout = 5000
+                conn.connectTimeout = 5000
+
+                val text = BufferedReader(InputStreamReader(conn.inputStream)).readText()
+                if (text.length > 2) {
+                    val arr = JSONArray(text)
+                    if (arr.length() > 0) {
+                        val obj = arr.getJSONObject(0)
+                        val newId = obj.optLong("id", -1)
+                        if (newId != lastStateId) {
+                            lastStateId = newId
+                            val expr = obj.optString("expression", "idle")
+                            val bubble = obj.optString("bubble_text", "")
+                            val safeBubble = bubble.replace("'", "\\'").replace(""", "\\"")
+
+                            Handler(Looper.getMainLooper()).post {
+                                overlayView?.evaluateJavascript(
+                                    "window.petEngine && window.petEngine.setExpression('$expr')", null
+                                )
+                                if (safeBubble.isNotEmpty()) {
+                                    overlayView?.evaluateJavascript(
+                                        "window.petEngine && window.petEngine.showMessage('$safeBubble', 5000)", null
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                conn.disconnect()
+            } catch (e: Exception) {
+                android.util.Log.e("DeskPet", "Supabase轮询失败", e)
+            }
+        }.start()
     }
 }
