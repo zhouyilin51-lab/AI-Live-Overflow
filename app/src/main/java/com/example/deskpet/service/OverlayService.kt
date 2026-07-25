@@ -334,15 +334,26 @@ class OverlayService : Service() {
 
     private val okHttp = OkHttpClient.Builder().readTimeout(0, TimeUnit.SECONDS).build()
 
+    private fun log(msg: String) {
+        try {
+            val f = java.io.FileOutputStream("/data/data/com.termux/files/home/deskpet.log", true)
+            val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+            f.write(("[" + time + "] " + msg + "\n").toByteArray())
+            f.close()
+        } catch (_: Exception) {}
+    }
+
     private fun connectRealtime() {
         val wsUrl = "$SUPABASE/realtime/v1/websocket?apikey=$SUPABASE_KEY&vsn=1.0.0"
         val req = Request.Builder().url(wsUrl).build()
         okHttp.newWebSocket(req, object : WebSocketListener() {
             override fun onOpen(ws: WebSocket, response: Response) {
+                log("WebSocket连接成功")
                 val join = """{"topic":"realtime:public:clawd_state:changes","event":"phx_join","payload":{"config":{"broadcast":false,"presence":false}},"ref":"1"}"""
                 ws.send(join)
             }
             override fun onMessage(ws: WebSocket, text: String) {
+                log("收到: " + text.take(100))
                 try {
                     val obj = org.json.JSONObject(text)
                     val event = obj.optString("event")
@@ -368,9 +379,11 @@ class OverlayService : Service() {
                 } catch (_: Exception) {}
             }
             override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+                log("失败: " + t.message)
                 uiHandler.postDelayed({ connectRealtime() }, 5000)
             }
             override fun onClosed(ws: WebSocket, code: Int, reason: String) {
+                log("关闭: " + code + " " + reason)
                 uiHandler.postDelayed({ connectRealtime() }, 5000)
             }
         })
