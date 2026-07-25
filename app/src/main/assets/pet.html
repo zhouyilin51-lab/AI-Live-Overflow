@@ -179,6 +179,38 @@ setInterval(function() {
     }
     setInterval(poll, 3000);
 })();
+
+// 按教程加Supabase轮询
+(function() {
+    var lastId = 0;
+    var url = 'https://fcqnppsskxbtmibuycfc.supabase.co/rest/v1/pet_state?order=id.desc&limit=5';
+    var key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcW5wcHNza3hidG1pYnV5Y2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTg2MjcsImV4cCI6MjA2MTg3NDYyN30.I7K_RnCXYIqX8SN9JF6fFoPFK8A-yJh6FpTMx6_qdm0';
+    setInterval(function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('apikey', key);
+        xhr.onload = function() {
+            try {
+                var items = JSON.parse(xhr.responseText);
+                if (items && items.length > 0) {
+                    var newId = items[0].id || 0;
+                    if (newId !== lastId) {
+                        lastId = newId;
+                        for (var i = 0; i < items.length; i++) {
+                            var item = items[i];
+                            if (item.state_key === 'expression' && item.state_value) {
+                                window.petEngine.setExpression(item.state_value);
+                            } else if (item.state_key === 'bubble_text' && item.state_value) {
+                                window.petEngine.showMessage(item.state_value, 5000);
+                            }
+                        }
+                    }
+                }
+            } catch(e) {}
+        };
+        xhr.send();
+    }, 15000);
+})();
 </script>
 </body>
 </html>
