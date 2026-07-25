@@ -128,7 +128,7 @@ class OverlayService : Service() {
                         val s = span(event)
                         if (lastSpan > 0f) {
                             val ratio = s / lastSpan
-                            currentScale = (currentScale * ratio).coerceIn(0.3f, 2.5f)
+                            currentScale = (currentScale * ratio).toFloat().coerceIn(0.3f, 2.5f)
                             params?.width = (dp(PET_W) * currentScale).toInt()
                             params?.height = (dp(PET_H) * currentScale).toInt()
                             windowManager?.updateViewLayout(overlayView, params)
@@ -196,6 +196,12 @@ class OverlayService : Service() {
             }
             else -> isCollapsed = false
         }
+    }
+
+    private fun span(event: android.view.MotionEvent): Float {
+        val dx = event.getX(0) - event.getX(1)
+        val dy = event.getY(0) - event.getY(1)
+        return kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
     }
 
     private fun expandFromEdge() {
