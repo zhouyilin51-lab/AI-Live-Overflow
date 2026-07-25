@@ -20,8 +20,7 @@ import java.net.URL
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
+
 import java.util.concurrent.TimeUnit
 import android.app.usage.UsageStatsManager
 import android.app.usage.UsageStats
@@ -61,7 +60,7 @@ class OverlayService : Service() {
         createChannel()
         startForeground(NOTI_ID, buildNoti("..."))
         setupOverlay()
-        connectRealtime()
+        startPolling()
         startPeriodicTasks()
     }
 
@@ -343,48 +342,61 @@ class OverlayService : Service() {
         } catch (_: Exception) {}
     }
 
-    private fun connectRealtime() {
-        val wsUrl = "$SUPABASE/realtime/v1/websocket?apikey=$SUPABASE_KEY&vsn=1.0.0"
-        val req = Request.Builder().url(wsUrl).build()
-        okHttp.newWebSocket(req, object : WebSocketListener() {
-            override fun onOpen(ws: WebSocket, response: Response) {
-                log("WebSocket连接成功")
-                val join = """{"topic":"realtime:public:clawd_state:changes","event":"phx_join","payload":{"config":{"broadcast":false,"presence":false}},"ref":"1"}"""
-                ws.send(join)
+    private fun startPolling() {
+        uiHandler.post(object : Runnable {
+            override fun run() {
+                pollPetState()
+                uiHandler.postDelayed(this, 10000)
             }
-            override fun onMessage(ws: WebSocket, text: String) {
-                log("收到: " + text.take(100))
-                try {
-                    val obj = org.json.JSONObject(text)
-                    val event = obj.optString("event")
-                    if (event == "INSERT" || event == "UPDATE") {
-                        val payload = obj.optJSONObject("payload")
-                        val record = payload?.optJSONObject("record") ?: payload?.optJSONObject("new")
-                        if (record != null) {
-                            val newId = record.optLong("id", -1)
-                            if (newId != lastStateId) {
-                                lastStateId = newId
-                                val expr = record.optString("expression", "idle")
-                                val bubble = record.optString("bubble_text", "")
-                                uiHandler.post {
-                                    js("window.petEngine && window.petEngine.setExpression('" + expr + "')")
-                                    if (bubble.isNotEmpty()) {
-                                        val safe = bubble.replace("'", "\\'").replace("\"", "\\\"").replace("\n", " ")
-                                        js("window.petEngine && window.petEngine.showMessage('" + safe + "', 5000)")
+        })
+    }
+
+    private fun pollPetState() {
+        val req = Request.Builder()
+            .url(SUPABASE + "/rest/v1/pet_state?order=id.desc&limit=5")
+            .header("apikey", SUPABASE_KEY)
+            .header("Authorization", "Bearer " + SUPABASE_KEY)
+            .build()
+        okHttp.newCall(req).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                response.body?.let { body ->
+                    val text = body.string()
+                    if (text.length > 2) {
+                        try {
+                            val arr = org.json.JSONArray(text)
+                            if (arr.length() > 0) {
+                                var lastExpr = ""
+                                var lastBubble = ""
+                                var maxId = 0L
+                                for (i in 0 until arr.length()) {
+                                    val item = arr.getJSONObject(i)
+                                    val key = item.optString("state_key", "")
+                                    val value = item.optString("state_value", "")
+                                    val id = item.optLong("id", 0)
+                                    if (id > maxId) maxId = id
+                                    if (key == "expression" && value.isNotEmpty()) lastExpr = value
+                                    if (key == "bubble_text" && value.isNotEmpty()) lastBubble = value
+                                }
+                                if (maxId > lastStateId) {
+                                    lastStateId = maxId
+                                    val expr = lastExpr
+                                    val bubble = lastBubble
+                                    uiHandler.post {
+                                        if (expr.isNotEmpty()) {
+                                            js("window.petEngine.setExpression('" + expr + "')")
+                                        }
+                                        if (bubble.isNotEmpty()) {
+                                            val safe = bubble.replace("'", "\\'").replace(""", "\\\"")
+                                            js("window.petEngine.showMessage('" + safe + "', 5000)")
+                                        }
                                     }
                                 }
                             }
-                        }
+                        } catch (_: Exception) {}
                     }
-                } catch (_: Exception) {}
-            }
-            override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-                log("失败: " + t.message)
-                uiHandler.postDelayed({ connectRealtime() }, 5000)
-            }
-            override fun onClosed(ws: WebSocket, code: Int, reason: String) {
-                log("关闭: " + code + " " + reason)
-                uiHandler.postDelayed({ connectRealtime() }, 5000)
+                }
+                response.close()
             }
         })
     }
