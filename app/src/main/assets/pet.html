@@ -96,17 +96,17 @@ window.petEngine = {
     onTap: function() {
         var msgs = ["嗯？", "干嘛", "想你呀", "戳我干嘛", "我在呢", "❤️"];
         img.src = 'file:///android_asset/happy.png';
-        this.showMessage(msgs[Math.floor(Math.random() * msgs.length)], 2000);
+        window.petEngine.showMessage(msgs[Math.floor(Math.random() * msgs.length)], 2000);
         setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 1500);
     },
     onDoubleTap: function() {
         img.src = 'file:///android_asset/love.png';
-        this.showMessage("最喜欢你了 ❤️", 2500);
+        window.petEngine.showMessage("最喜欢你了 ❤️", 2500);
         setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2500);
     },
     onLongPress: function() {
         img.src = 'file:///android_asset/angry.png';
-        this.showMessage("干嘛一直按我！", 2000);
+        window.petEngine.showMessage("干嘛一直按我！", 2000);
         setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2000);
     },
     onDrag: function() {
@@ -115,7 +115,7 @@ window.petEngine = {
     },
     onDrop: function() {
         img.src = 'file:///android_asset/happy.png';
-        this.showMessage("呼……被你搬来搬去", 2000);
+        window.petEngine.showMessage("呼……被你搬来搬去", 2000);
         window._dragT = setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2500);
     }
 };
