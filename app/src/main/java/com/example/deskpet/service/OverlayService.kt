@@ -90,13 +90,10 @@ class OverlayService : Service() {
                 javaScriptEnabled = true
                 domStorageEnabled = true
                 allowFileAccess = true
-                allowContentAccess = true
-                cacheMode = WebSettings.LOAD_DEFAULT
-                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
             webViewClient = WebViewClient()
             loadUrl("file:///android_asset/pet.html")
-            setOnTouchListener(touchListener)
+            setOnTouchListener(createTouchListener())
         }
 
         try {
@@ -109,54 +106,55 @@ class OverlayService : Service() {
 
     // ========== 触摸监听 ==========
 
-    private val touchListener = View.OnTouchListener { _, event ->
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                initialX = params?.x ?: 0
-                initialY = params?.y ?: 0
-                initialTouchX = event.rawX
-                initialTouchY = event.rawY
-                touchStartTime = System.currentTimeMillis()
-                hasMoved = false
-                true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val dx = (event.rawX - initialTouchX).toInt()
-                val dy = (event.rawY - initialTouchY).toInt()
-                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                    if (!hasMoved) {
-                        hasMoved = true
-                        js("window.petEngine && window.petEngine.onDrag()")
-                    }
-                    params?.x = initialX + dx
-                    params?.y = initialY + dy
-                    windowManager?.updateViewLayout(overlayView, params)
+    private fun createTouchListener(): View.OnTouchListener {
+        return View.OnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    initialX = params?.x ?: 0
+                    initialY = params?.y ?: 0
+                    initialTouchX = event.rawX
+                    initialTouchY = event.rawY
+                    touchStartTime = System.currentTimeMillis()
+                    hasMoved = false
+                    true
                 }
-                true
-            }
-            MotionEvent.ACTION_UP -> {
-                if (hasMoved) {
-                    js("window.petEngine && window.petEngine.onDrop()")
-                    checkEdge()
-                } else {
-                    if (isCollapsed) {
-                        expandFromEdge()
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = (event.rawX - initialTouchX).toInt()
+                    val dy = (event.rawY - initialTouchY).toInt()
+                    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                        if (!hasMoved) {
+                            hasMoved = true
+                            onDrag()
+                        }
+                        params?.x = initialX + dx
+                        params?.y = initialY + dy
+                        windowManager?.updateViewLayout(overlayView, params)
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (hasMoved) {
+                        onDrop()
+                        checkEdge()
                     } else {
-                        val elapsed = System.currentTimeMillis() - touchStartTime
-                        when {
-                            elapsed > 600 -> js("window.petEngine && window.petEngine.onLongPress()")
-                            System.currentTimeMillis() - lastTapTime < 300 ->
-                                js("window.petEngine && window.petEngine.onDoubleTap()")
-                            else -> {
-                                lastTapTime = System.currentTimeMillis()
-                                js("window.petEngine && window.petEngine.onTap()")
+                        if (isCollapsed) {
+                            expandFromEdge()
+                        } else {
+                            val elapsed = System.currentTimeMillis() - touchStartTime
+                            when {
+                                elapsed > 600 -> onLongPress()
+                                System.currentTimeMillis() - lastTapTime < 300 -> onDoubleTap()
+                                else -> {
+                                    lastTapTime = System.currentTimeMillis()
+                                    onTap()
+                                }
                             }
                         }
                     }
+                    true
                 }
-                true
+                else -> false
             }
-            else -> false
         }
     }
 
@@ -199,6 +197,26 @@ class OverlayService : Service() {
         params?.width = (dp(PET_W) * currentScale).toInt()
         params?.height = (dp(PET_H) * currentScale).toInt()
         windowManager?.updateViewLayout(overlayView, params)
+    }
+
+    private fun onTap() {
+        overlayView?.evaluateJavascript("window.petEngine && window.petEngine.onTap()", null)
+    }
+
+    private fun onDoubleTap() {
+        overlayView?.evaluateJavascript("window.petEngine && window.petEngine.onDoubleTap()", null)
+    }
+
+    private fun onLongPress() {
+        overlayView?.evaluateJavascript("window.petEngine && window.petEngine.onLongPress()", null)
+    }
+
+    private fun onDrag() {
+        overlayView?.evaluateJavascript("window.petEngine && window.petEngine.onDrag()", null)
+    }
+
+    private fun onDrop() {
+        overlayView?.evaluateJavascript("window.petEngine && window.petEngine.onDrop()", null)
     }
 
     // ========== Supabase 轮询 ==========
