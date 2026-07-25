@@ -51,6 +51,8 @@ class OverlayService : Service() {
     private var touchStartTime = 0L
     private var hasMoved = false
     private var lastTapTime = 0L
+    private var lastSpan = 0f
+    private var currentScale = 1.0f
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -116,19 +118,34 @@ class OverlayService : Service() {
                     initialTouchY = event.rawY
                     touchStartTime = System.currentTimeMillis()
                     hasMoved = false
+                    if (event.pointerCount >= 2) {
+                        lastSpan = span(event)
+                    }
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - initialTouchX).toInt()
-                    val dy = (event.rawY - initialTouchY).toInt()
-                    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                        if (!hasMoved) {
-                            hasMoved = true
-                            onDrag()
+                    if (event.pointerCount >= 2) {
+                        val s = span(event)
+                        if (lastSpan > 0f) {
+                            val ratio = s / lastSpan
+                            currentScale = (currentScale * ratio).coerceIn(0.3f, 2.5f)
+                            params?.width = (dp(PET_W) * currentScale).toInt()
+                            params?.height = (dp(PET_H) * currentScale).toInt()
+                            windowManager?.updateViewLayout(overlayView, params)
                         }
-                        params?.x = initialX + dx
-                        params?.y = initialY + dy
-                        windowManager?.updateViewLayout(overlayView, params)
+                        lastSpan = s
+                    } else {
+                        val dx = (event.rawX - initialTouchX).toInt()
+                        val dy = (event.rawY - initialTouchY).toInt()
+                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                            if (!hasMoved) {
+                                hasMoved = true
+                                onDrag()
+                            }
+                            params?.x = initialX + dx
+                            params?.y = initialY + dy
+                            windowManager?.updateViewLayout(overlayView, params)
+                        }
                     }
                     true
                 }
@@ -190,14 +207,7 @@ class OverlayService : Service() {
 
     // ========== 缩放 ==========
 
-    private var currentScale = 1.0f
 
-    private fun setScale(scale: Float) {
-        currentScale = scale.coerceIn(0.3f, 2.0f)
-        params?.width = (dp(PET_W) * currentScale).toInt()
-        params?.height = (dp(PET_H) * currentScale).toInt()
-        windowManager?.updateViewLayout(overlayView, params)
-    }
 
     private fun onTap() {
         overlayView?.evaluateJavascript("window.petEngine && window.petEngine.onTap()", null)

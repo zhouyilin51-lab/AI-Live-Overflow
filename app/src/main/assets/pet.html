@@ -2,9 +2,9 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin:0; padding:0; box-sizing:border-box; }
 body {
     background: transparent;
     overflow: hidden;
@@ -13,143 +13,120 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: sans-serif;
 }
-#pet {
-    width: 120px;
-    height: 140px;
-    transition: all 0.3s ease;
-    cursor: pointer;
+#wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#petImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: opacity 0.25s ease;
     user-select: none;
-    -webkit-user-select: none;
+    -webkit-user-drag: none;
 }
-.eyes { animation: blink 3s infinite; }
-@keyframes blink {
-    0%, 95%, 100% { transform: scaleY(1); }
-    97% { transform: scaleY(0.1); }
-}
-.tail { animation: wag 2s ease-in-out infinite; transform-origin: 70px 130px; }
-@keyframes wag {
-    0%, 100% { transform: rotate(-5deg); }
-    50% { transform: rotate(5deg); }
-}
-.happy .tail { animation-duration: 0.5s; }
-.happy .mouth { d: path("M40,85 Q60,100 80,85"); stroke: #ff6b6b; }
-.sleep { opacity: 0.7; }
-.sleep .eyes { animation: sleepBlink 6s infinite; }
-@keyframes sleepBlink {
-    0%, 95%, 100% { transform: scaleY(0.05); }
-    97% { transform: scaleY(1); }
-}
-.speak .mouth { d: path("M35,85 Q60,100 85,85"); stroke: #ff9f43; }
 #bubble {
     position: absolute;
-    top: -10px;
+    top: -30px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(255,255,255,0.9);
-    border-radius: 12px;
-    padding: 6px 12px;
+    background: rgba(255,255,255,0.93);
+    border-radius: 14px;
+    padding: 6px 14px;
     font-size: 12px;
     white-space: nowrap;
+    max-width: 140px;
     opacity: 0;
-    transition: opacity 0.3s;
+    transition: opacity 0.25s ease, transform 0.25s ease;
     pointer-events: none;
-    border: 1px solid #ddd;
-    color: #333;
+    border: 1.5px solid #ddd;
+    color: #555;
+    font-family: sans-serif;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    z-index: 10;
 }
-#bubble.show { opacity: 1; }
+#bubble.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+#bubble:after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(255,255,255,0.93);
+}
 </style>
 </head>
 <body>
-<div style="position:relative;display:inline-flex;align-items:center;justify-content:center">
+<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center">
     <div id="bubble"></div>
-    <svg id="pet" viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg">
-        <!-- 尾巴 -->
-        <path class="tail" d="M70,130 Q90,100 85,85" stroke="#d4a574" stroke-width="6" fill="none" stroke-linecap="round"/>
-        <!-- 身体 -->
-        <ellipse cx="60" cy="100" rx="35" ry="30" fill="#f0c8a0"/>
-        <!-- 耳朵左 -->
-        <ellipse cx="35" cy="35" rx="12" ry="18" fill="#d4a574" transform="rotate(-15,35,35)"/>
-        <!-- 耳朵右 -->
-        <ellipse cx="85" cy="35" rx="12" ry="18" fill="#d4a574" transform="rotate(15,85,35)"/>
-        <!-- 耳朵内左 -->
-        <ellipse cx="35" cy="35" rx="7" ry="11" fill="#e8b4d0" transform="rotate(-15,35,35)"/>
-        <!-- 耳朵内右 -->
-        <ellipse cx="85" cy="35" rx="7" ry="11" fill="#e8b4d0" transform="rotate(15,85,35)"/>
-        <!-- 头部 -->
-        <circle cx="60" cy="55" r="30" fill="#f0c8a0"/>
-        <!-- 眼睛 -->
-        <g class="eyes">
-            <circle cx="48" cy="52" r="5" fill="#333"/>
-            <circle cx="72" cy="52" r="5" fill="#333"/>
-            <circle cx="50" cy="50" r="2" fill="white"/>
-            <circle cx="74" cy="50" r="2" fill="white"/>
-        </g>
-        <!-- 鼻子 -->
-        <ellipse cx="60" cy="62" rx="4" ry="3" fill="#ff9f43"/>
-        <!-- 嘴巴 -->
-        <path class="mouth" d="M50,70 Q60,78 70,70" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
-        <!-- 腮红 -->
-        <ellipse cx="40" cy="65" rx="6" ry="4" fill="#ffb3b3" opacity="0.4"/>
-        <ellipse cx="80" cy="65" rx="6" ry="4" fill="#ffb3b3" opacity="0.4"/>
-        <!-- 肚子 -->
-        <ellipse cx="60" cy="105" rx="22" ry="18" fill="#f8dcc0"/>
-    </svg>
+    <div id="wrapper">
+        <img id="petImage" src="file:///android_asset/default.png">
+    </div>
 </div>
 <script>
-const pet = document.getElementById('pet');
-const bubble = document.getElementById('bubble');
-
-const messages = [
-    "在看什么呢～", "戳我干嘛！", "喜欢你喜欢你", 
-    "好无聊哦……", "zzz……", "🥺", "要抱抱"
-];
-
-let state = 'idle';
+var img = document.getElementById('petImage');
+var bubble = document.getElementById('bubble');
 
 window.petEngine = {
+    setExpression: function(expr) {
+        var name = expr;
+        if (name === 'idle') name = 'default';
+        var src = 'file:///android_asset/' + name + '.png';
+        if (img.src !== src) img.src = src;
+        if (expr !== 'sleep') {
+            clearTimeout(window._exprT);
+            window._exprT = setTimeout(function() {
+                img.src = 'file:///android_asset/default.png';
+            }, 4000);
+        }
+    },
+    showMessage: function(text, dur) {
+        bubble.textContent = text;
+        bubble.classList.add('show');
+        clearTimeout(window._bubT);
+        window._bubT = setTimeout(function() { bubble.classList.remove('show'); }, dur || 3000);
+    },
     onTap: function() {
-        pet.className = 'happy';
-        showBubble(messages[Math.floor(Math.random() * messages.length)]);
-        setTimeout(() => { pet.className = ''; }, 1000);
+        var msgs = ["嗯？", "干嘛", "想你呀", "戳我干嘛", "我在呢", "❤️"];
+        img.src = 'file:///android_asset/happy.png';
+        this.showMessage(msgs[Math.floor(Math.random() * msgs.length)], 2000);
+        setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 1500);
     },
     onDoubleTap: function() {
-        showBubble("🥺 好喜欢你！", 2000);
-        pet.className = 'happy';
-        setTimeout(() => { pet.className = ''; }, 1500);
+        img.src = 'file:///android_asset/love.png';
+        this.showMessage("最喜欢你了 ❤️", 2500);
+        setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2500);
     },
     onLongPress: function() {
-        showBubble("？你干嘛一直按我！", 2000);
-        pet.className = 'speak';
-        setTimeout(() => { pet.className = ''; }, 1500);
+        img.src = 'file:///android_asset/angry.png';
+        this.showMessage("干嘛一直按我！", 2000);
+        setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2000);
     },
-    setExpression: function(expr) {
-        pet.className = expr;
+    onDrag: function() {
+        img.src = 'file:///android_asset/angry.png';
+        clearTimeout(window._dragT);
     },
-    showMessage: function(text, duration) {
-        showBubble(text, duration || 3000);
+    onDrop: function() {
+        img.src = 'file:///android_asset/happy.png';
+        this.showMessage("呼……被你搬来搬去", 2000);
+        window._dragT = setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2500);
     }
 };
 
-function showBubble(text, duration) {
-    bubble.textContent = text;
-    bubble.classList.add('show');
-    setTimeout(() => bubble.classList.remove('show'), duration || 1500);
-}
-
-// 空闲自动反应
-setInterval(() => {
-    if (Math.random() < 0.1 && !bubble.classList.contains('show')) {
-        const idleMsgs = [". . .", "嗯～", "你还在吗", "好安静啊"];
-        showBubble(idleMsgs[Math.floor(Math.random() * idleMsgs.length)], 2000);
+// 空闲随机说话
+setInterval(function() {
+    if (img.src.indexOf('default.png') > -1 && !bubble.classList.contains('show') && Math.random() < 0.08) {
+        var msgs = [". . .", "嗯哼", "你还在吗", "好安静"];
+        window.petEngine.showMessage(msgs[Math.floor(Math.random() * msgs.length)], 2000);
     }
-}, 20000);
-
-// 打瞌睡
-setTimeout(() => {
-    pet.className = 'sleep';
-}, 60000);
+}, 15000);
 </script>
 </body>
 </html>
