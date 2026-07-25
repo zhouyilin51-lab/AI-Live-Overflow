@@ -20,6 +20,8 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import android.app.usage.UsageStatsManager
+import android.app.usage.UsageStats
 
 class OverlayService : Service() {
 
@@ -39,6 +41,8 @@ class OverlayService : Service() {
     private val pollingTask = object : Runnable {
         override fun run() {
             fetchState()
+            checkForegroundApp()
+            checkTimeBased()
             uiHandler.postDelayed(this, 3000)
         }
     }
@@ -237,6 +241,89 @@ class OverlayService : Service() {
 
     // ========== Supabase 轮询 ==========
 
+    private var lastApp = ""
+    private val appReactions = mapOf(
+        "com.ss.android.ugc.aweme" to "吃醋",
+        "com.ss.android.ugc.live" to "吃醋",
+        "com.tencent.mm" to "吃醋",
+        "com.taobao.taobao" to "淘宝",
+        "com.tencent.qqlive" to "看剧",
+        "com.netease.cloudmusic" to "听歌",
+        "com.chaoxing.mobile" to "学习"
+    )
+
+    private fun checkForegroundApp() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return
+        Thread {
+            try {
+                val usm = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
+                val end = System.currentTimeMillis()
+                val start = end - 5000
+                val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end)
+                if (stats != null) {
+                    var topPackage = ""
+                    var lastUsed = 0L
+                    for (s in stats) {
+                        if (s.lastTimeUsed > lastUsed) {
+                            lastUsed = s.lastTimeUsed
+                            topPackage = s.packageName
+                        }
+                    }
+                    if (topPackage.isNotEmpty() && topPackage != lastApp) {
+                        lastApp = topPackage
+                        val reaction = appReactions[topPackage]
+                        if (reaction != null) {
+                            val msg = when (reaction) {
+                                "吃醋" -> arrayOf("又在刷短视频！", "跟谁聊天呢？", "那个人是谁！").random()
+                                "淘宝" -> arrayOf("想买什么？", "快递到了吗？", "又花钱！").random()
+                                "看剧" -> "看什么剧呢？带我一起！"
+                                "听歌" -> "听歌不叫我？"
+                                "学习" -> "这么认真呀，奖励一个亲亲"
+                                else -> "你在干嘛呢？"
+                            }
+                            uiHandler.post {
+                                js("window.petEngine && window.petEngine.setExpression('jealous')")
+                                js("window.petEngine && window.petEngine.showMessage('$msg', 3000)")
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // 没有UsageStats权限就静默跳过
+            }
+        }.start()
+    }
+
+    private var lastWaterRemind = 0L
+    private var lastBedRemind = 0L
+    private var lastBatteryRemind = 0L
+
+    private fun checkTimeBased() {
+        val cal = java.util.Calendar.getInstance()
+        val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+        val now = System.currentTimeMillis()
+
+        // 深夜催睡（0点-6点）
+        if (hour >= 0 && hour < 6 && now - lastBedRemind > 3600000) {
+            lastBedRemind = now
+            val msgs = arrayOf("都几点了还不睡！", "熬夜对身体不好……", "宝宝该睡了💤", "再不睡我要生气了！")
+            uiHandler.post {
+                js("window.petEngine && window.petEngine.setExpression('angry')")
+                js("window.petEngine && window.petEngine.showMessage('${msgs.random()}', 4000)")
+            }
+        }
+
+        // 喝水提醒（每2小时，只在白天）
+        if (hour >= 8 && hour < 23 && now - lastWaterRemind > 7200000) {
+            lastWaterRemind = now
+            uiHandler.post {
+                js("window.petEngine && window.petEngine.setExpression('default')")
+                js("window.petEngine && window.petEngine.showMessage('该喝水了宝宝💧', 3000)")
+            }
+        }
+    }
+
+    // 先不继续加了，够用了
     private fun fetchState() {
         Thread {
             try {
