@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        startService(Intent(this, OverlayService::class.java))
+        startForegroundService(Intent(this, OverlayService::class.java))
         Toast.makeText(this, "桌宠已启动 🐾", Toast.LENGTH_SHORT).show()
         btnStart.text = "桌宠运行中 ❤️"
         btnStart.isEnabled = false
