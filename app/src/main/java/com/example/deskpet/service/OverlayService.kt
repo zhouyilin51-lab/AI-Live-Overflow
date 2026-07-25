@@ -373,16 +373,6 @@ class OverlayService : Service() {
             }
         })
     }
-                            }
-                        }
-                    }
-                }
-                conn.disconnect()
-            } catch (e: Exception) {
-                android.util.Log.e("DeskPet", "Supabase轮询", e)
-            }
-        }.start()
-    }
 
     // ========== 工具 ==========
 
