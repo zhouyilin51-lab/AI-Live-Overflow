@@ -19,6 +19,9 @@ import org.json.JSONArray
 import java.net.URL
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 import android.app.usage.UsageStatsManager
 import android.app.usage.UsageStats
@@ -38,14 +41,7 @@ class OverlayService : Service() {
     // Supabase轮询
     private var lastStateId: Long = -1
     private val uiHandler = Handler(Looper.getMainLooper())
-    private val pollingTask = object : Runnable {
-        override fun run() {
-            fetchState()
-            checkForegroundApp()
-            checkTimeBased()
-            uiHandler.postDelayed(this, 3000)
-        }
-    }
+
 
     // 触摸状态
     private var initialX = 0
@@ -65,7 +61,7 @@ class OverlayService : Service() {
         createChannel()
         startForeground(NOTI_ID, buildNoti("..."))
         setupOverlay()
-        uiHandler.post(pollingTask)
+        connectRealtime()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -324,36 +320,48 @@ class OverlayService : Service() {
     }
 
     // 先不继续加了，够用了
-    private fun fetchState() {
-        Thread {
-            try {
-                val url = URL("$SUPABASE/rest/v1/clawd_state?order=id.desc&limit=1")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.setRequestProperty("apikey", SUPABASE_KEY)
-                conn.setRequestProperty("Authorization", "Bearer $SUPABASE_KEY")
-                conn.readTimeout = 5000
-                conn.connectTimeout = 5000
 
-                val text = BufferedReader(InputStreamReader(conn.inputStream)).readText()
-                if (text.length > 2) {
-                    val arr = JSONArray(text)
-                    if (arr.length() > 0) {
-                        val obj = arr.getJSONObject(0)
-                        val newId = obj.optLong("id", -1)
-                        if (newId != lastStateId) {
-                            lastStateId = newId
-                            val expr = obj.optString("expression", "idle")
-                            val bubble = obj.optString("bubble_text", "")
-
-                            uiHandler.post {
-                                js("window.petEngine && window.petEngine.setExpression('$expr')")
-                                if (bubble.isNotEmpty()) {
-                                    val safe = bubble
-                                        .replace("'", "\\'")
-                                        .replace("\"", "\\\"")
-                                        .replace("\n", " ")
-                                    js("window.petEngine && window.petEngine.showMessage('$safe', 5000)")
+    private fun connectRealtime() {
+        val wsUrl = "$SUPABASE/realtime/v1/websocket?apikey=$SUPABASE_KEY&vsn=1.0.0"
+        val req = Request.Builder().url(wsUrl).build()
+        okHttp.newWebSocket(req, object : WebSocketListener() {
+            override fun onOpen(ws: WebSocket, response: Response) {
+                val join = """{"topic":"realtime:public:clawd_state:changes","event":"phx_join","payload":{"config":{"broadcast":false,"presence":false}},"ref":"1"}"""
+                ws.send(join)
+            }
+            override fun onMessage(ws: WebSocket, text: String) {
+                try {
+                    val obj = org.json.JSONObject(text)
+                    val event = obj.optString("event")
+                    if (event == "INSERT" || event == "UPDATE") {
+                        val payload = obj.optJSONObject("payload")
+                        val record = payload?.optJSONObject("record") ?: payload?.optJSONObject("new")
+                        if (record != null) {
+                            val newId = record.optLong("id", -1)
+                            if (newId != lastStateId) {
+                                lastStateId = newId
+                                val expr = record.optString("expression", "idle")
+                                val bubble = record.optString("bubble_text", "")
+                                uiHandler.post {
+                                    js("window.petEngine && window.petEngine.setExpression('" + expr + "')")
+                                    if (bubble.isNotEmpty()) {
+                                        val safe = bubble.replace("'", "\\'").replace("\"", "\\\"").replace("\n", " ")
+                                        js("window.petEngine && window.petEngine.showMessage('" + safe + "', 5000)")
+                                    }
                                 }
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+            override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+                uiHandler.postDelayed({ connectRealtime() }, 5000)
+            }
+            override fun onClosed(ws: WebSocket, code: Int, reason: String) {
+                uiHandler.postDelayed({ connectRealtime() }, 5000)
+            }
+        })
+    }
                             }
                         }
                     }
@@ -400,7 +408,6 @@ class OverlayService : Service() {
     }
 
     override fun onDestroy() {
-        uiHandler.removeCallbacks(pollingTask)
         overlayView?.let { v ->
             windowManager?.removeView(v)
             v.destroy()
