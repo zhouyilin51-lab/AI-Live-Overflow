@@ -146,6 +146,7 @@ class OverlayService : Service() {
                                 js("window.petEngine && window.petEngine.onTap()")
                             }
                         }
+                        }
                     }
                     true
                 }
@@ -174,9 +175,8 @@ class OverlayService : Service() {
         }
     }
 
-    // 双击恢复展开
-    override fun onResume() {
-        super.onResume()
+    // 从侧边展开（触摸释放时检测）
+    private fun expandIfCollapsed() {
         if (isCollapsed) {
             params?.x = 50
             windowManager?.updateViewLayout(overlayView, params)
