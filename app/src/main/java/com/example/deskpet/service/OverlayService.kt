@@ -72,7 +72,13 @@ class OverlayService : Service() {
             setOnTouchListener(createTouchListener())
         }
 
-        windowManager?.addView(overlayView, params)
+        try {
+            windowManager?.addView(overlayView, params)
+        } catch (e: Exception) {
+            android.util.Log.e("DeskPet", "悬浮窗添加失败", e)
+            stopSelf()
+            return
+        }
     }
 
     // === GESTURE HANDLING ===

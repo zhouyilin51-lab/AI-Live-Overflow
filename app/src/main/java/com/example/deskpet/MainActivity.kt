@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkAndStart() {
+        try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             !Settings.canDrawOverlays(this)
         ) {
@@ -48,6 +49,10 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "桌宠已启动 🐾", Toast.LENGTH_SHORT).show()
         btnStart.text = "桌宠运行中 ❤️"
         btnStart.isEnabled = false
+        } catch (e: Exception) {
+            Toast.makeText(this, "启动失败: " + e.message, Toast.LENGTH_LONG).show()
+            android.util.Log.e("DeskPet", "启动失败", e)
+        }
     }
 
     override fun onResume() {
