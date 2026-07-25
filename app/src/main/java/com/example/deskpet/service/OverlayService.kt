@@ -62,6 +62,7 @@ class OverlayService : Service() {
         startForeground(NOTI_ID, buildNoti("..."))
         setupOverlay()
         connectRealtime()
+        startPeriodicTasks()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -320,6 +321,16 @@ class OverlayService : Service() {
     }
 
     // 先不继续加了，够用了
+
+    private fun startPeriodicTasks() {
+        uiHandler.post(object : Runnable {
+            override fun run() {
+                checkForegroundApp()
+                checkTimeBased()
+                uiHandler.postDelayed(this, 5000)
+            }
+        })
+    }
 
     private fun connectRealtime() {
         val wsUrl = "$SUPABASE/realtime/v1/websocket?apikey=$SUPABASE_KEY&vsn=1.0.0"
