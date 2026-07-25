@@ -1,23 +1,25 @@
 package com.example.deskpet.service
 
 import android.app.*
-import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
-import android.os.IBinder
 import android.os.Handler
 import android.os.Looper
-import android.view.*
+import android.os.IBinder
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.webkit.WebSettings
 import androidx.core.app.NotificationCompat
+import org.json.JSONArray
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import org.json.JSONArray
 
 class OverlayService : Service() {
 
@@ -28,17 +30,20 @@ class OverlayService : Service() {
     private val PET_W = 180
     private val PET_H = 240
 
+    // 侧边收起状态
     private var isCollapsed = false
+
+    // Supabase轮询
     private var lastStateId: Long = -1
     private val uiHandler = Handler(Looper.getMainLooper())
-    private val pollingRunnable = object : Runnable {
+    private val pollingTask = object : Runnable {
         override fun run() {
             fetchState()
             uiHandler.postDelayed(this, 3000)
         }
     }
 
-    // === 手势状态 ===
+    // 触摸状态
     private var initialX = 0
     private var initialY = 0
     private var initialTouchX = 0f
@@ -54,13 +59,11 @@ class OverlayService : Service() {
         createChannel()
         startForeground(NOTI_ID, buildNoti("..."))
         setupOverlay()
-        uiHandler.post(pollingRunnable)
+        uiHandler.post(pollingTask)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForeground(NOTI_ID, buildNoti("..."))
-        }
+        startForeground(NOTI_ID, buildNoti("..."))
         return START_STICKY
     }
 
@@ -73,11 +76,12 @@ class OverlayService : Service() {
             dp(PET_W), dp(PET_H),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 50; y = 300
+            x = 50
+            y = 300
         }
 
         overlayView = WebView(this).apply {
@@ -92,7 +96,7 @@ class OverlayService : Service() {
             }
             webViewClient = WebViewClient()
             loadUrl("file:///android_asset/pet.html")
-            setOnTouchListener(touchListener())
+            setOnTouchListener(touchListener)
         }
 
         try {
@@ -103,42 +107,44 @@ class OverlayService : Service() {
         }
     }
 
-    // ========== 触摸 ==========
+    // ========== 触摸监听 ==========
 
-    private fun touchListener(): View.OnTouchListener {
-        return View.OnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialX = params?.x ?: 0
-                    initialY = params?.y ?: 0
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
-                    touchStartTime = System.currentTimeMillis()
-                    hasMoved = false
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - initialTouchX).toInt()
-                    val dy = (event.rawY - initialTouchY).toInt()
-                    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                        if (!hasMoved) {
-                            hasMoved = true
-                            js("window.petEngine && window.petEngine.onDrag()")
-                        }
-                        params?.x = initialX + dx
-                        params?.y = initialY + dy
-                        windowManager?.updateViewLayout(overlayView, params)
+    private val touchListener = View.OnTouchListener { _, event ->
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                initialX = params?.x ?: 0
+                initialY = params?.y ?: 0
+                initialTouchX = event.rawX
+                initialTouchY = event.rawY
+                touchStartTime = System.currentTimeMillis()
+                hasMoved = false
+                true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dx = (event.rawX - initialTouchX).toInt()
+                val dy = (event.rawY - initialTouchY).toInt()
+                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                    if (!hasMoved) {
+                        hasMoved = true
+                        js("window.petEngine && window.petEngine.onDrag()")
                     }
-                    true
+                    params?.x = initialX + dx
+                    params?.y = initialY + dy
+                    windowManager?.updateViewLayout(overlayView, params)
                 }
-                MotionEvent.ACTION_UP -> {
-                    if (hasMoved) {
-                        js("window.petEngine && window.petEngine.onDrop()")
-                        checkEdgeCollapse()
+                true
+            }
+            MotionEvent.ACTION_UP -> {
+                if (hasMoved) {
+                    js("window.petEngine && window.petEngine.onDrop()")
+                    checkEdge()
+                } else {
+                    if (isCollapsed) {
+                        expandFromEdge()
                     } else {
-                        val t = System.currentTimeMillis() - touchStartTime
+                        val elapsed = System.currentTimeMillis() - touchStartTime
                         when {
-                            t > 600 -> js("window.petEngine && window.petEngine.onLongPress()")
+                            elapsed > 600 -> js("window.petEngine && window.petEngine.onLongPress()")
                             System.currentTimeMillis() - lastTapTime < 300 ->
                                 js("window.petEngine && window.petEngine.onDoubleTap()")
                             else -> {
@@ -146,57 +152,52 @@ class OverlayService : Service() {
                                 js("window.petEngine && window.petEngine.onTap()")
                             }
                         }
-                        }
                     }
-                    true
                 }
-                else -> false
+                true
             }
+            else -> false
         }
     }
 
-    // 拖到边缘自动收起
-    private fun checkEdgeCollapse() {
+    // ========== 边缘收起 / 展开 ==========
+
+    private fun checkEdge() {
         val dm = resources.displayMetrics
         val screenW = dm.widthPixels
         val x = params?.x ?: 0
-        if (x < -dp(PET_W) / 3) {
-            params?.x = -dp(PET_W) + dp(12)
-            windowManager?.updateViewLayout(overlayView, params)
-            isCollapsed = true
-            js("window.petEngine && window.petEngine.setExpression('sleep')")
-        } else if (x > screenW - dp(PET_W) * 2 / 3) {
-            params?.x = screenW - dp(12)
-            windowManager?.updateViewLayout(overlayView, params)
-            isCollapsed = true
-            js("window.petEngine && window.petEngine.setExpression('sleep')")
-        } else {
-            isCollapsed = false
+        when {
+            x < -dp(PET_W) / 3 -> {
+                params?.x = -dp(PET_W) + dp(12)
+                windowManager?.updateViewLayout(overlayView, params)
+                isCollapsed = true
+                js("window.petEngine && window.petEngine.setExpression('sleep')")
+            }
+            x > screenW - dp(PET_W) * 2 / 3 -> {
+                params?.x = screenW - dp(12)
+                windowManager?.updateViewLayout(overlayView, params)
+                isCollapsed = true
+                js("window.petEngine && window.petEngine.setExpression('sleep')")
+            }
+            else -> isCollapsed = false
         }
     }
 
-    // 从侧边展开（触摸释放时检测）
-    private fun expandIfCollapsed() {
-        if (isCollapsed) {
-            params?.x = 50
-            windowManager?.updateViewLayout(overlayView, params)
-            isCollapsed = false
-            js("window.petEngine && window.petEngine.setExpression('wake')")
-        }
+    private fun expandFromEdge() {
+        params?.x = 50
+        windowManager?.updateViewLayout(overlayView, params)
+        isCollapsed = false
+        js("window.petEngine && window.petEngine.setExpression('wake')")
     }
 
-    // ========== 缩放手势 ==========
+    // ========== 缩放 ==========
 
-    private var lastScaleDist = 0f
     private var currentScale = 1.0f
 
-    // 简单缩放：通过调整LayoutParams大小
     private fun setScale(scale: Float) {
         currentScale = scale.coerceIn(0.3f, 2.0f)
-        val w = (dp(PET_W) * currentScale).toInt()
-        val h = (dp(PET_H) * currentScale).toInt()
-        params?.width = w
-        params?.height = h
+        params?.width = (dp(PET_W) * currentScale).toInt()
+        params?.height = (dp(PET_H) * currentScale).toInt()
         windowManager?.updateViewLayout(overlayView, params)
     }
 
@@ -205,7 +206,7 @@ class OverlayService : Service() {
     private fun fetchState() {
         Thread {
             try {
-                val url = URL("${SUPABASE}/rest/v1/clawd_state?order=id.desc&limit=1")
+                val url = URL("$SUPABASE/rest/v1/clawd_state?order=id.desc&limit=1")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.setRequestProperty("apikey", SUPABASE_KEY)
                 conn.setRequestProperty("Authorization", "Bearer $SUPABASE_KEY")
@@ -243,7 +244,7 @@ class OverlayService : Service() {
         }.start()
     }
 
-    // ========== 工具方法 ==========
+    // ========== 工具 ==========
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
@@ -272,22 +273,23 @@ class OverlayService : Service() {
             val ch = NotificationChannel(
                 CHANNEL, "Pet", NotificationManager.IMPORTANCE_LOW
             ).apply { setShowBadge(false) }
-            getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
+            val nm = getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(ch)
         }
     }
 
     override fun onDestroy() {
-        uiHandler.removeCallbacks(pollingRunnable)
-        overlayView?.let {
-            windowManager?.removeView(it)
-            it.destroy()
+        uiHandler.removeCallbacks(pollingTask)
+        overlayView?.let { v ->
+            windowManager?.removeView(v)
+            v.destroy()
         }
         overlayView = null
         super.onDestroy()
     }
 
     companion object {
-        private const val CHANNEL = "pet_overlay_channel"
+        private const val CHANNEL = "pet_overlay"
         private const val NOTI_ID = 1001
         private const val SUPABASE = "https://fcqnppsskxbtmibuycfc.supabase.co"
         private const val SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcW5wcHNza3hidG1pYnV5Y2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTg2MjcsImV4cCI6MjA2MTg3NDYyN30.I7K_RnCXYIqX8SN9JF6fFoPFK8A-yJh6FpTMx6_qdm0"
