@@ -272,6 +272,21 @@ window.petEngine = {
         wrapper.className = 'angry';
         showBubble("干嘛一直按着我不放！！", 2000);
         setTimeout(() => { if (wrapper.className === 'angry') wrapper.className = 'idle'; }, 2000);
+    },
+
+    onDrag: function() {
+        wrapper.className = 'angry';
+        wrapper.style.transform = 'rotate(12deg) scale(0.95)';
+        clearTimeout(window._dragTimer);
+    },
+
+    onDrop: function() {
+        wrapper.style.transform = '';
+        wrapper.className = 'happy';
+        showBubble("呼……被你搬来搬去的", 2000);
+        window._dragTimer = setTimeout(() => {
+            if (wrapper.className === 'happy') wrapper.className = 'idle';
+        }, 2500);
     }
 };
 

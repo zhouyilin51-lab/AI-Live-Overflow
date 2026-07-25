@@ -116,7 +116,12 @@ class OverlayService : Service() {
                     val dx = (event.rawX - initialTouchX).toInt()
                     val dy = (event.rawY - initialTouchY).toInt()
                     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                        hasMoved = true
+                        if (!hasMoved) {
+                            hasMoved = true
+                            overlayView?.evaluateJavascript(
+                                "window.petEngine && window.petEngine.onDrag()", null
+                            )
+                        }
                         params?.x = initialX + dx
                         params?.y = initialY + dy
                         windowManager?.updateViewLayout(overlayView, params)
@@ -124,8 +129,12 @@ class OverlayService : Service() {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    val elapsed = System.currentTimeMillis() - touchStartTime
-                    if (!hasMoved) {
+                    if (hasMoved) {
+                        overlayView?.evaluateJavascript(
+                            "window.petEngine && window.petEngine.onDrop()", null
+                        )
+                    } else {
+                        val elapsed = System.currentTimeMillis() - touchStartTime
                         when {
                             elapsed > 600 -> onLongPress()
                             System.currentTimeMillis() - lastTapTime < 300 -> onDoubleTap()
