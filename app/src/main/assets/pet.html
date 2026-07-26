@@ -84,6 +84,7 @@ window.petEngine = {
     showMessage: function(text, dur) {
         bubble.textContent = text;
         bubble.classList.add('show');
+        if (text.length > 6) bubble.classList.add('wrap'); else bubble.classList.remove('wrap');
         clearTimeout(window._bubT);
         window._bubT = setTimeout(function() { bubble.classList.remove('show'); }, dur || 3000);
     },
