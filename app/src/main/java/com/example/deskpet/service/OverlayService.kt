@@ -32,7 +32,7 @@ class OverlayService : Service() {
     private var params: WindowManager.LayoutParams? = null
 
     private val PET_W = 180
-    private val PET_H = 240
+    private val PET_H = 300
 
     // 侧边收起状态
     private var isCollapsed = false
