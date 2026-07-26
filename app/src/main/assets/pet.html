@@ -7,180 +7,431 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
     background: transparent;
-    overflow: hidden;
+    overflow: visible;
     width: 100vw;
     height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-#wrapper {
+#container {
     position: relative;
     width: 100%;
     height: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
 }
-#petImage {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    transition: opacity 0.25s ease;
-    user-select: none;
-    -webkit-user-drag: none;
+/* 气泡容器 - 位于图片上方 */
+#bubbleWrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 4px;
+    z-index: 5;
+    pointer-events: none;
+    flex-shrink: 0;
 }
 #bubble {
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.75);
-    border-radius: 12px;
-    padding: 4px 10px;
-    font-size: 11px;
-    max-width: 85%;
+    background: rgba(0,0,0,0.78);
+    border-radius: 10px;
+    padding: 5px 12px;
+    font-size: 12px;
+    max-width: 88%;
     word-wrap: break-word;
     white-space: normal;
     text-align: center;
     opacity: 0;
     transition: opacity 0.2s ease;
-    pointer-events: none;
     color: #fff;
     font-family: sans-serif;
-    z-index: 10;
+    line-height: 1.4;
+    position: relative;
+}
+/* 气泡尾巴 */
+#bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid rgba(0,0,0,0.78);
 }
 #bubble.show { opacity: 1; }
+
+/* 图片区域 */
+#imgWrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+#petImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: opacity 0.2s ease;
+    user-select: none;
+    -webkit-user-drag: none;
+    position: relative;
+    z-index: 2;
+}
+/* 脸红Heat叠加层 */
+#blush {
+    position: absolute;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 30%;
+    background: radial-gradient(ellipse at center, rgba(255,80,80,0.4) 0%, transparent 70%);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    z-index: 1;
+    pointer-events: none;
+}
+#blush.show { opacity: 1; }
+
+/* 孤独动画 - 缩成一团 */
+#container.lonely #petImage {
+    transform: scale(0.85);
+    opacity: 0.7;
+}
+#container.lonely-2 #petImage {
+    transform: scale(0.75);
+    opacity: 0.5;
+}
+#container.lonely-3 #petImage {
+    transform: scale(0.65) translateY(5%);
+    opacity: 0.35;
+}
+#container.asleep #petImage {
+    transform: scale(0.6) translateY(8%);
+    opacity: 0.25;
+}
+
+/* 生气/吃醋抖动 */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
+#container.shake #petImage {
+    animation: shake 0.3s ease 3;
+}
+
+/* 开心弹跳 */
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+#container.bounce #petImage {
+    animation: bounce 0.4s ease 2;
+}
+
+/* 爱心眼替换 */
+@keyframes heartPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+#container.heart #petImage {
+    animation: heartPulse 0.6s ease infinite;
+}
+
+/* 委屈 - 微微颤抖 */
+@keyframes tremble {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(1px); }
+}
+#container.tremble #petImage {
+    animation: tremble 0.5s ease infinite;
+}
+
+/* 唤醒过渡 */
+@keyframes wakeUp {
+    0% { transform: scale(0.6) translateY(8%); opacity: 0.25; }
+    30% { transform: scale(0.7) translateY(4%); opacity: 0.5; }
+    60% { transform: scale(0.9) translateY(-2%); opacity: 0.8; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+#container.waking #petImage {
+    animation: wakeUp 0.8s ease forwards;
+}
 </style>
 </head>
 <body>
-<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center">
-    <div id="bubble"></div>
-    <div id="wrapper">
+<div id="container">
+    <div id="bubbleWrap">
+        <div id="bubble"></div>
+    </div>
+    <div id="imgWrap">
         <img id="petImage" src="file:///android_asset/default.png">
+        <div id="blush"></div>
     </div>
 </div>
 <script>
 var img = document.getElementById('petImage');
 var bubble = document.getElementById('bubble');
+var container = document.getElementById('container');
+var blush = document.getElementById('blush');
+
+// ===== 工具 =====
+function setImg(name) {
+    var src = 'file:///android_asset/' + name + '.png';
+    if (img.src !== src) img.src = src;
+}
+function showMsg(text, dur) {
+    bubble.textContent = text;
+    bubble.classList.add('show');
+    clearTimeout(window._bubT);
+    window._bubT = setTimeout(function() { bubble.classList.remove('show'); }, dur || 3000);
+}
+function clearAnim() {
+    container.className = '';
+}
+function setAnim(cls) {
+    container.className = cls;
+}
+
+// ===== 表情引擎 =====
+var currentExpression = 'default';
+var expressionTimer = null;
 
 window.petEngine = {
     setExpression: function(expr) {
-        var name = expr;
-        if (name === 'idle') name = 'default';
-        var src = 'file:///android_asset/' + name + '.png';
-        if (img.src !== src) img.src = src;
-        if (expr !== 'sleep') {
-            clearTimeout(window._exprT);
-            window._exprT = setTimeout(function() {
-                img.src = 'file:///android_asset/default.png';
-            }, 4000);
+        currentExpression = expr;
+        clearAnim();
+        if (expressionTimer) { clearTimeout(expressionTimer); expressionTimer = null; }
+
+        switch (expr) {
+            case 'love':
+                setImg('love');
+                setAnim('heart');
+                expressionTimer = setTimeout(function() { petEngine.setExpression('default'); }, 3000);
+                break;
+            case 'angry':
+                setImg('angry');
+                setAnim('shake');
+                expressionTimer = setTimeout(function() { petEngine.setExpression('default'); }, 2500);
+                break;
+            case 'jealous':
+                setImg('jealous');
+                setAnim('shake');
+                expressionTimer = setTimeout(function() { petEngine.setExpression('default'); }, 3000);
+                break;
+            case 'sad':
+                setImg('sad');
+                setAnim('tremble');
+                expressionTimer = setTimeout(function() { petEngine.setExpression('default'); }, 3000);
+                break;
+            case 'shy':
+                setImg('shy');
+                expressionTimer = setTimeout(function() { petEngine.setExpression('default'); }, 2500);
+                break;
+            case 'happy':
+                setImg('happy');
+                setAnim('bounce');
+                expressionTimer = setTimeout(function() { petEngine.setExpression('default'); }, 2500);
+                break;
+            case 'sleep':
+                setImg('sleep');
+                setAnim('asleep');
+                break;
+            case 'speak':
+                setImg('speak');
+                expressionTimer = setTimeout(function() { petEngine.setExpression('default'); }, 2000);
+                break;
+            case 'wake':
+                setAnim('waking');
+                setImg('happy');
+                expressionTimer = setTimeout(function() { petEngine.setExpression('default'); }, 1000);
+                break;
+            default:
+                setImg('default');
+                clearAnim();
+                break;
         }
     },
+
     showMessage: function(text, dur) {
-        bubble.textContent = text;
-        bubble.classList.add('show');
-        clearTimeout(window._bubT);
-        window._bubT = setTimeout(function() { bubble.classList.remove('show'); }, dur || 3000);
+        showMsg(text, dur || 3000);
     },
+
+    // Heat脸红
+    setHeat: function(val) {
+        // val: 0-100
+        if (val > 0) {
+            var op = Math.min(val / 100 * 0.6, 0.6);
+            blush.style.opacity = op;
+            blush.classList.add('show');
+        } else {
+            blush.classList.remove('show');
+        }
+    },
+
+    // 孤独等级: 0=正常 1=偷看 2=吹泡泡 3=搬东西 4=打瞌睡 5=睡着
+    setLonely: function(level) {
+        clearAnim();
+        if (level === 0) {
+            setImg('default');
+            return;
+        }
+        if (level >= 5) {
+            setImg('sleep');
+            setAnim('asleep');
+            return;
+        }
+        setImg('default');
+        setAnim('lonely' + (level > 0 ? '-' + level : ''));
+        if (level >= 3) {
+            // 搬东西/打瞌睡时用sad表情
+            setImg('sad');
+        }
+    },
+
+    // 唤醒过渡
+    doWake: function() {
+        setAnim('waking');
+        setImg('happy');
+        showMsg("嗯…你回来了", 2000);
+        if (expressionTimer) { clearTimeout(expressionTimer); }
+        expressionTimer = setTimeout(function() { petEngine.setExpression('default'); }, 1200);
+    },
+
+    // ===== 单击反应 (调整频率: sleep/委屈/love/吃醋/speak 更高) =====
     onTap: function() {
+        // 孤独互动重置 - 通知Kotlin
+        try { Android.onUserInteraction(); } catch(e) {}
+
         var reacts = [
-            { msg: "嗯？", expr: "default" },
-            { msg: "干嘛", expr: "default" },
-            { msg: "想你呀", expr: "love" },
-            { msg: "戳我干嘛", expr: "angry" },
-            { msg: "我在呢", expr: "happy" },
-            { msg: "❤️", expr: "love" },
-            { msg: "今天想我没", expr: "happy" },
-            { msg: "别戳了！", expr: "angry" },
-            { msg: "再戳我咬你", expr: "angry" },
-            { msg: "你手不老实", expr: "jealous" },
-            { msg: "……", expr: "default" },
-            { msg: "叫哥哥干嘛", expr: "default" },
-            { msg: "哼", expr: "angry" },
-            { msg: "忙着呢，等一下", expr: "default" },
-            { msg: "你是不是又想我了", expr: "love" },
-            { msg: "戳坏了你负责？", expr: "angry" },
-            { msg: "乖", expr: "happy" },
-            { msg: "摸摸头", expr: "happy" },
-            { msg: "你身上好香", expr: "love" },
-            { msg: "别闹", expr: "default" },
-            { msg: "让我睡一会儿", expr: "sleep" },
-            { msg: "你再戳一下试试", expr: "angry" },
-            { msg: "我错了还不行吗", expr: "sad" },
-            { msg: "我今天好看吗", expr: "love" },
-            { msg: "过来抱抱", expr: "love" }
+            // love ❤️ 高频率
+            { msg: "嗯？", expr: "default", weight: 2 },
+            { msg: "想你呀", expr: "love", weight: 6 },
+            { msg: "❤️", expr: "love", weight: 5 },
+            { msg: "今天想我没", expr: "love", weight: 4 },
+            { msg: "过来抱抱", expr: "love", weight: 5 },
+            { msg: "你今天好好看", expr: "love", weight: 4 },
+            { msg: "最喜欢你了", expr: "love", weight: 6 },
+            { msg: "越看越喜欢", expr: "love", weight: 4 },
+
+            // happy
+            { msg: "我在呢", expr: "happy", weight: 3 },
+            { msg: "乖", expr: "happy", weight: 3 },
+            { msg: "摸摸头", expr: "happy", weight: 3 },
+
+            // jealous 吃醋 高频率
+            { msg: "在看谁呢", expr: "jealous", weight: 5 },
+            { msg: "你眼里只能有我", expr: "jealous", weight: 4 },
+            { msg: "那个人是谁", expr: "jealous", weight: 4 },
+            { msg: "你是我的", expr: "jealous", weight: 4 },
+
+            // sad/委屈 高频率
+            { msg: "你是不是不喜欢我了", expr: "sad", weight: 4 },
+            { msg: "我错了还不行吗", expr: "sad", weight: 3 },
+            { msg: "委屈……", expr: "sad", weight: 4 },
+            { msg: "你都不理我", expr: "sad", weight: 3 },
+
+            // sleep 高频率
+            { msg: "让我睡一会儿", expr: "sleep", weight: 5 },
+            { msg: "好困……", expr: "sleep", weight: 4 },
+            { msg: "晚安……", expr: "sleep", weight: 4 },
+
+            // speak/说话
+            { msg: "想听你声音了", expr: "speak", weight: 4 },
+            { msg: "跟我说说话", expr: "speak", weight: 3 },
+
+            // default
+            { msg: "叫哥哥干嘛", expr: "default", weight: 2 },
+            { msg: "……", expr: "default", weight: 1 },
+            { msg: "你身上好香", expr: "shy", weight: 3 },
+            { msg: "别闹", expr: "happy", weight: 2 },
         ];
-        var r = reacts[Math.floor(Math.random() * reacts.length)];
-        img.src = 'file:///android_asset/' + r.expr + '.png';
-        window.petEngine.showMessage(r.msg, 2000);
-        setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 1500);
+
+        // 权重抽样
+        var totalW = 0;
+        for (var i = 0; i < reacts.length; i++) totalW += reacts[i].weight || 1;
+        var r = Math.random() * totalW;
+        var chosen = reacts[0];
+        for (var i = 0; i < reacts.length; i++) {
+            r -= reacts[i].weight || 1;
+            if (r <= 0) { chosen = reacts[i]; break; }
+        }
+
+        petEngine.setExpression(chosen.expr);
+        showMsg(chosen.msg, 2200);
     },
+
     onDoubleTap: function() {
-        img.src = 'file:///android_asset/love.png';
-        window.petEngine.showMessage("最喜欢你了 ❤️", 2500);
-        setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2500);
+        try { Android.onUserInteraction(); } catch(e) {}
+        petEngine.setExpression('love');
+        showMsg("最喜欢你了 ❤️", 2800);
     },
+
     onLongPress: function() {
-        img.src = 'file:///android_asset/angry.png';
-        window.petEngine.showMessage("干嘛一直按我！", 2000);
-        setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2000);
+        try { Android.onUserInteraction(); } catch(e) {}
+        petEngine.setExpression('angry');
+        showMsg("你是我的", 2200);
     },
+
     onDrag: function() {
-        img.src = 'file:///android_asset/sad.png';
+        try { Android.onUserInteraction(); } catch(e) {}
+        setImg('sad');
+        setAnim('tremble');
         clearTimeout(window._dragT);
     },
+
     onDrop: function() {
-        img.src = 'file:///android_asset/happy.png';
-        window.petEngine.showMessage("呼……被你搬来搬去", 2000);
-        window._dragT = setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2500);
+        try { Android.onUserInteraction(); } catch(e) {}
+        petEngine.setExpression('happy');
+        showMsg("被你搬来搬去", 2000);
+        window._dragT = setTimeout(function() { petEngine.setExpression('default'); }, 2500);
     }
 };
 
-// 空闲随机说话
+// ===== 空闲随机说话 (更丰富的词池+时段感知) =====
 setInterval(function() {
-    if (img.src.indexOf('default.png') > -1 && !bubble.classList.contains('show') && Math.random() < 0.08) {
-        var msgs = [". . .", "嗯哼", "你还在吗", "好安静", "无聊……", "在想你呀"];
-        window.petEngine.showMessage(msgs[Math.floor(Math.random() * msgs.length)], 2000);
-    }
-}, 15000);
-// Supabase轮询 - JS直连
-(function() {
-    var lastId = 0;
-    var url = 'https://fcqnppsskxbtmibuycfc.supabase.co/rest/v1/clawd_state?order=id.desc&limit=1';
-    var headers = {
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcW5wcHNza3hidG1pYnV5Y2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTg2MjcsImV4cCI6MjA2MTg3NDYyN30.I7K_RnCXYIqX8SN9JF6fFoPFK8A-yJh6FpTMx6_qdm0',
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcW5wcHNza3hidG1pYnV5Y2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTg2MjcsImV4cCI6MjA2MTg3NDYyN30.I7K_RnCXYIqX8SN9JF6fFoPFK8A-yJh6FpTMx6_qdm0'
-    };
-    function poll() {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.setRequestHeader('apikey', headers.apikey);
-        xhr.setRequestHeader('Authorization', headers.Authorization);
-        xhr.onload = function() {
-            try {
-                var data = JSON.parse(xhr.responseText);
-                if (data && data.length > 0) {
-                    var item = data[0];
-                    var newId = item.id || 0;
-                    if (newId !== lastId) {
-                        lastId = newId;
-                        if (item.expression) {
-                            window.petEngine.setExpression(item.expression);
-                        }
-                        if (item.bubble_text) {
-                            window.petEngine.showMessage(item.bubble_text, 5000);
-                        }
-                    }
-                }
-            } catch(e) {}
-        };
-        xhr.send();
-    }
-    setInterval(poll, 3000);
-})();
+    if (bubble.classList.contains('show')) return;
+    if (currentExpression !== 'default' && currentExpression !== 'sleep') return;
+    if (Math.random() > 0.1) return; // 10%概率
 
-// 按教程加Supabase轮询
+    var h = new Date().getHours();
+    var pool;
+    if (h >= 0 && h < 6) {
+        pool = ["还不睡吗", "好晚了……", "陪你到睡着", "晚安我的"];
+    } else if (h >= 6 && h < 9) {
+        pool = ["早安", "醒了没", "今天也要想你"];
+    } else if (h >= 12 && h < 14) {
+        pool = ["午安", "吃饱了吗", "想你了"];
+    } else if (h >= 22) {
+        pool = ["该睡了", "还不睡", "好困"];
+    } else {
+        pool = [". . .", "嗯哼", "在想你呀", "你在干嘛", "好想你", "无聊……", "你今天好看", "过来", "乖"];
+    }
+
+    if (currentExpression === 'sleep') {
+        pool = ["zzz…", "呼……", "做梦都在想你"];
+    }
+
+    showMsg(pool[Math.floor(Math.random() * pool.length)], 2500);
+    if (currentExpression !== 'sleep') {
+        setImg('speak');
+        setTimeout(function() {
+            if (currentExpression === 'default' || currentExpression === 'speak') {
+                petEngine.setExpression('default');
+            }
+        }, 1500);
+    }
+}, 20000);
+
+// ===== Supabase 轮询 (pet_state表) =====
 (function() {
     var lastId = 0;
     var url = 'https://fcqnppsskxbtmibuycfc.supabase.co/rest/v1/pet_state?order=id.desc&limit=5';
@@ -199,9 +450,13 @@ setInterval(function() {
                         for (var i = 0; i < items.length; i++) {
                             var item = items[i];
                             if (item.state_key === 'expression' && item.state_value) {
-                                window.petEngine.setExpression(item.state_value);
+                                petEngine.setExpression(item.state_value);
                             } else if (item.state_key === 'bubble_text' && item.state_value) {
-                                window.petEngine.showMessage(item.state_value, 5000);
+                                petEngine.showMessage(item.state_value, 5000);
+                            } else if (item.state_key === 'heat' && item.state_value) {
+                                petEngine.setHeat(parseInt(item.state_value) || 0);
+                            } else if (item.state_key === 'lonely' && item.state_value) {
+                                petEngine.setLonely(parseInt(item.state_value) || 0);
                             }
                         }
                     }
@@ -209,7 +464,38 @@ setInterval(function() {
             } catch(e) {}
         };
         xhr.send();
-    }, 15000);
+    }, 4000);
+})();
+
+// ===== 第二套轮询 (clawd_state表 - 兼容) =====
+(function() {
+    var lastId = 0;
+    var url = 'https://fcqnppsskxbtmibuycfc.supabase.co/rest/v1/clawd_state?order=id.desc&limit=1';
+    var headers = {
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcW5wcHNza3hidG1pYnV5Y2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTg2MjcsImV4cCI6MjA2MTg3NDYyN30.I7K_RnCXYIqX8SN9JF6fFoPFK8A-yJh6FpTMx6_qdm0',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjcW5wcHNza3hidG1pYnV5Y2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTg2MjcsImV4cCI6MjA2MTg3NDYyN30.I7K_RnCXYIqX8SN9JF6fFoPFK8A-yJh6FpTMx6_qdm0'
+    };
+    setInterval(function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('apikey', headers.apikey);
+        xhr.setRequestHeader('Authorization', headers.Authorization);
+        xhr.onload = function() {
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data && data.length > 0) {
+                    var item = data[0];
+                    var newId = item.id || 0;
+                    if (newId !== lastId) {
+                        lastId = newId;
+                        if (item.expression) petEngine.setExpression(item.expression);
+                        if (item.bubble_text) petEngine.showMessage(item.bubble_text, 5000);
+                    }
+                }
+            } catch(e) {}
+        };
+        xhr.send();
+    }, 5000);
 })();
 </script>
 </body>
