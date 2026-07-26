@@ -57,7 +57,7 @@ body {
     height: 0;
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
-    border-top: 6px solid rgba(0,0,0,0.78);
+    border-top: 6px solid rgba(255,255,255,0.92);
 }
 #bubble.show { opacity: 1; }
 </style>
@@ -74,15 +74,11 @@ var bubble = document.getElementById('bubble');
 
 window.petEngine = {
     setExpression: function(expr) {
-        var name = expr;
-        if (name === 'idle') name = 'default';
-        var src = 'file:///android_asset/' + name + '.png';
-        if (img.src !== src) img.src = src;
+        if (expr === 'idle' || expr === 'default') { img.src = 'file:///android_asset/default.png'; return; }
+        img.src = 'file:///android_asset/' + expr + '.png';
         if (expr !== 'sleep') {
             clearTimeout(window._exprT);
-            window._exprT = setTimeout(function() {
-                img.src = 'file:///android_asset/default.png';
-            }, 4000);
+            window._exprT = setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 3000);
         }
     },
     showMessage: function(text, dur) {
@@ -125,23 +121,24 @@ window.petEngine = {
         setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 1500);
     },
     onDoubleTap: function() {
-        img.src = 'file:///android_asset/love.png';
-        window.petEngine.showMessage("最喜欢你了 ❤️", 2500);
-        setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2500);
+        try { Android.onUserInteraction(); } catch(e) {}
+        window.petEngine.setExpression('love');
+        window.petEngine.showMessage("最喜欢你了 ❤️", 2800);
     },
     onLongPress: function() {
-        img.src = 'file:///android_asset/angry.png';
-        window.petEngine.showMessage("干嘛一直按我！", 2000);
-        setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2000);
+        try { Android.onUserInteraction(); } catch(e) {}
+        window.petEngine.setExpression('angry');
+        window.petEngine.showMessage("你是我的", 2200);
     },
     onDrag: function() {
         img.src = 'file:///android_asset/sad.png';
         clearTimeout(window._dragT);
     },
     onDrop: function() {
-        img.src = 'file:///android_asset/happy.png';
-        window.petEngine.showMessage("呼……被你搬来搬去", 2000);
-        window._dragT = setTimeout(function() { img.src = 'file:///android_asset/default.png'; }, 2500);
+        try { Android.onUserInteraction(); } catch(e) {}
+        window.petEngine.setExpression('happy');
+        window.petEngine.showMessage("被你搬来搬去", 2000);
+        window._dragT = setTimeout(function() { window.petEngine.setExpression('default'); }, 2500);
     }
 };
 
