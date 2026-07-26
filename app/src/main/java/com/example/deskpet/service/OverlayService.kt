@@ -387,7 +387,7 @@ class OverlayService : Service() {
                                             js("window.petEngine.setExpression('" + expr + "')")
                                         }
                                         if (bubble.isNotEmpty()) {
-                                            val safe = bubble.replace("'", "\\'").replace(""", "\\\"")
+                                            val safe = bubble
                                             js("window.petEngine.showMessage('" + safe + "', 5000)")
                                         }
                                     }
