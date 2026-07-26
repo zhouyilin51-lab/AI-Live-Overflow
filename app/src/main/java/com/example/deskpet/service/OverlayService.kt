@@ -12,13 +12,11 @@ import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
 import android.os.IBinder
-import android.provider.MediaStore
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.app.NotificationCompat
@@ -140,7 +138,7 @@ class OverlayService : Service() {
 
         overlayView = object : WebView(this) {
             override fun onOverScrolled(scrollX: Int, scrollY: Int, clampedX: Boolean, clampedY: Boolean) {
-                // 禁止WebView滚动
+                super.onOverScrolled(scrollX, scrollY, clampedX, clampedY)
             }
         }.apply {
             setBackgroundColor(0x00000000)
@@ -723,7 +721,6 @@ class OverlayService : Service() {
                         } catch (_: Exception) {}
                     }
                 }
-                response.close()
             }
         })
     }
